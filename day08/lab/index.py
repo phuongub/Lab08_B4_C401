@@ -292,7 +292,7 @@ def build_index(docs_dir: Path = DOCS_DIR, db_dir: Path = CHROMA_DB_DIR) -> None
         )
     """
     import chromadb
-
+    
     print(f"Đang build index từ: {docs_dir}")
     db_dir.mkdir(parents=True, exist_ok=True)
 
