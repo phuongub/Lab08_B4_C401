@@ -64,7 +64,7 @@ VARIANT_CONFIG = {
     "retrieval_mode": "hybrid",   # Hoặc "dense" nếu chỉ đổi rerank
     "top_k_search": 10,
     "top_k_select": 3,
-    "use_rerank": True,           # Hoặc False nếu variant là hybrid không rerank
+    "use_rerank": False,           # Hoặc False nếu variant là hybrid không rerank
     "label": "variant_hybrid_rerank",
 }
 
@@ -581,14 +581,14 @@ if __name__ == "__main__":
 
     # --- Chạy Variant (sau khi Sprint 3 hoàn thành) ---
     # TODO Sprint 4: Uncomment sau khi implement variant trong rag_answer.py
-    # print("\n--- Chạy Variant ---")
-    # variant_results = run_scorecard(
-    #     config=VARIANT_CONFIG,
-    #     test_questions=test_questions,
-    #     verbose=True,
-    # )
-    # variant_md = generate_scorecard_summary(variant_results, VARIANT_CONFIG["label"])
-    # (RESULTS_DIR / "scorecard_variant.md").write_text(variant_md, encoding="utf-8")
+    print("\n--- Chạy Variant ---")
+    variant_results = run_scorecard(
+        config=VARIANT_CONFIG,
+        test_questions=test_questions,
+        verbose=True,
+    )
+    variant_md = generate_scorecard_summary(variant_results, VARIANT_CONFIG["label"])
+    (RESULTS_DIR / "scorecard_variant.md").write_text(variant_md, encoding="utf-8")
 
     # --- A/B Comparison ---
     # TODO Sprint 4: Uncomment sau khi có cả baseline và variant
