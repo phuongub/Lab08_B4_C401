@@ -60,15 +60,14 @@
 ### Variant (Sprint 3)
 | Tham số | Giá trị | Thay đổi so với baseline |
 |---------|---------|------------------------|
-| Strategy | TODO (hybrid / dense) | TODO |
-| Top-k search | TODO | TODO |
-| Top-k select | TODO | TODO |
-| Rerank | TODO (cross-encoder / MMR) | TODO |
-| Query transform | TODO (expansion / HyDE / decomposition) | TODO |
+| Strategy | dense | Không đổi |
+| Top-k search | 10 | Không đổi |
+| Top-k select | 3 | Không đổi |
+| Rerank | Cross-encoder | Thêm rerank |
+| Query transform | Không có | Không có |
 
 **Lý do chọn variant này:**
-> TODO: Giải thích tại sao chọn biến này để tune.
-> Ví dụ: "Chọn hybrid vì corpus có cả câu tự nhiên (policy) lẫn mã lỗi và tên chuyên ngành (SLA ticket P1, ERR-403)."
+> Bổ sung Rerank (Cross-encoder) để khắc phục điểm yếu "thiếu độ chính xác vi mô" của Dense Search. Trong tài liệu Helpdesk, các chính sách có từ khóa gần giống nhau sẽ có vector rất sát nhau, dễ bị truy xuất nhầm. Cross-encoder sẽ so khớp chéo (cross-attention) từng từ giữa câu hỏi và Top 10 chunk thô, từ đó chấm điểm và chọn ra 3 chunk chính xác tuyệt đối trước khi đưa cho LLM.
 
 ---
 
@@ -114,21 +113,3 @@ Answer:
 
 ---
 
-## 6. Diagram (tùy chọn)
-
-> TODO: Vẽ sơ đồ pipeline nếu có thời gian. Có thể dùng Mermaid hoặc drawio.
-
-```mermaid
-graph LR
-    A[User Query] --> B[Query Embedding]
-    B --> C[ChromaDB Vector Search]
-    C --> D[Top-10 Candidates]
-    D --> E{Rerank?}
-    E -->|Yes| F[Cross-Encoder]
-    E -->|No| G[Top-3 Select]
-    F --> G
-    G --> H[Build Context Block]
-    H --> I[Grounded Prompt]
-    I --> J[LLM]
-    J --> K[Answer + Citation]
-```
