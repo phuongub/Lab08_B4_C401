@@ -24,6 +24,7 @@ Definition of Done Sprint 3:
 import os
 import importlib
 import re
+import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
@@ -34,11 +35,18 @@ load_dotenv(Path(__file__).with_name(".env"))
 # CẤU HÌNH
 # =============================================================================
 
-TOP_K_SEARCH = 8    # Số chunk lấy từ vector store trước rerank (search rộng)
+TOP_K_SEARCH = 6    # Số chunk lấy từ vector store trước rerank (search rộng)
 TOP_K_SELECT = 3     # Số chunk gửi vào prompt sau rerank/select (top-3 sweet spot)
+
+# HYBRID-specific: Giảm số chunk vì hybrid gọi cả dense + sparse (tốn token/quota)
+TOP_K_HYBRID = 4    # Giảm xuống vì hybrid đã có kết hợp, đỡ cần tìm rộng
 
 # LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+
+# Retry config
+MAX_LLM_RETRIES = 3
+INITIAL_RETRY_WAIT = 2.0  # seconds, exponential backoff
 
 _SPARSE_INDEX_CACHE: Dict[str, Any] = {}
 
@@ -447,12 +455,21 @@ Answer:
     return prompt
 
 
-def call_llm(prompt: str) -> str:
+def call_llm(prompt: str, max_retries: int = MAX_LLM_RETRIES, initial_wait: float = INITIAL_RETRY_WAIT) -> str:
     """
-    Gọi LLM để sinh câu trả lời.
+    Gọi LLM để sinh câu trả lời với retry logic cho 503 errors.
 
-    TODO Sprint 2:
-    Chọn một trong hai:
+    Args:
+        prompt: Prompt để gửi tới LLM
+        max_retries: Số lần retry tối đa (default=MAX_LLM_RETRIES env var)
+        initial_wait: Thời gian chờ ban đầu (default=INITIAL_RETRY_WAIT), tăng exponentially
+
+    Implements exponential backoff:
+      - Retry 1: chờ 1s
+      - Retry 2: chờ 2s
+      - Retry 3: chờ 4s
+      - Retry 4: chờ 8s
+      - Retry 5: chờ 16s
 
     Option A — OpenAI (cần OPENAI_API_KEY):
         from openai import OpenAI
@@ -460,7 +477,7 @@ def call_llm(prompt: str) -> str:
         response = client.chat.completions.create(
             model=LLM_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0,     # temperature=0 để output ổn định, dễ đánh giá
+            temperature=0,
             max_tokens=512,
         )
         return response.choices[0].message.content
@@ -474,7 +491,7 @@ def call_llm(prompt: str) -> str:
         )
         return response.text
 
-    Lưu ý: Dùng temperature=0 hoặc thấp để output ổn định cho evaluation.
+    Lưu ý: Dùng temperature=0 để output ổn định cho evaluation.
     """
     from google import genai
     from google.genai import types
@@ -483,19 +500,48 @@ def call_llm(prompt: str) -> str:
     if not api_key:
         raise ValueError("Thiếu GEMINI_API_KEY trong file .env")
 
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=LLM_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0,
-            max_output_tokens=512,
-        ),
-    )
+    retry_count = 0
+    wait_time = initial_wait
+    last_error = None
 
-    text = getattr(response, "text", None)
-    if text and text.strip():
-        return text.strip()
+    while retry_count <= max_retries:
+        try:
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=LLM_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0,
+                    max_output_tokens=512,
+                ),
+            )
+
+            text = getattr(response, "text", None)
+            if text and text.strip():
+                if retry_count > 0:
+                    print(f"[LLM] ✓ Thành công sau {retry_count} retry(s)")
+                return text.strip()
+
+            return "Không đủ dữ liệu."
+
+        except Exception as e:
+            error_str = str(e)
+            last_error = e
+
+            # Check nếu là 503 UNAVAILABLE error
+            if "503" in error_str or "UNAVAILABLE" in error_str:
+                if retry_count < max_retries:
+                    print(f"[LLM] ⚠ 503 Error (attempt {retry_count + 1}/{max_retries}), chờ {wait_time}s...")
+                    time.sleep(wait_time)
+                    retry_count += 1
+                    wait_time *= 2  # Exponential backoff
+                    continue
+            raise e
+
+    # Nếu hết retries
+    if last_error:
+        print(f"[LLM] ✗ Thất bại sau {max_retries} retry(s)")
+        raise last_error
 
     return "Không đủ dữ liệu."
     # raise NotImplementedError(
@@ -552,12 +598,19 @@ def rag_answer(
     }
 
     # --- Bước 1: Retrieve ---
+    # Optimization: Giảm top_k cho hybrid vì nó gọi cả dense + sparse
+    effective_top_k = top_k_search
+    if retrieval_mode == "hybrid":
+        effective_top_k = TOP_K_HYBRID
+        if verbose:
+            print(f"[RAG] Dùng TOP_K_HYBRID={TOP_K_HYBRID} (thay vì TOP_K_SEARCH={top_k_search}) để tối ưu hóa")
+
     if retrieval_mode == "dense":
-        candidates = retrieve_dense(query, top_k=top_k_search)
+        candidates = retrieve_dense(query, top_k=effective_top_k)
     elif retrieval_mode == "sparse":
-        candidates = retrieve_sparse(query, top_k=top_k_search)
+        candidates = retrieve_sparse(query, top_k=effective_top_k)
     elif retrieval_mode == "hybrid":
-        candidates = retrieve_hybrid(query, top_k=top_k_search)
+        candidates = retrieve_hybrid(query, top_k=effective_top_k)
     else:
         raise ValueError(f"retrieval_mode không hợp lệ: {retrieval_mode}")
 
@@ -645,29 +698,30 @@ if __name__ == "__main__":
     # Test queries từ data/test_questions.json
     test_queries = [
         "SLA xử lý ticket P1 là bao lâu?",
-        "Khách hàng có thể yêu cầu hoàn tiền trong bao nhiêu ngày?",
         "Ai phải phê duyệt để cấp quyền Level 3?",
         "ERR-403-AUTH là lỗi gì?",  # Query không có trong docs → kiểm tra abstain
-        "Tài khoản bị khóa sau bao nhiêu lần đăng nhập sai?"
     ]
 
-    print("\n--- Sprint 2: Test Baseline (Dense) ---")
-    for query in test_queries:
-        print(f"\nQuery: {query}")
-        try:
-            result = rag_answer(query, retrieval_mode="hybrid", verbose=True)
-            print(f"Answer: {result['answer']}")
-            print(f"Sources: {result['sources']}")
-        except NotImplementedError:
-            print("Chưa implement — hoàn thành TODO trong retrieve_dense() và call_llm() trước.")
-        except Exception as e:
-            print(f"Lỗi: {e}")
+    # print("\n--- Sprint 2: Test Baseline (Dense) ---")
+    # for query in test_queries:
+    #     print(f"\nQuery: {query}")
+    #     try:
+    #         result = rag_answer(query, retrieval_mode="dense", verbose=True)
+    #         print(f"Answer: {result['answer']}")
+    #         print(f"Sources: {result['sources']}")
+    #     except NotImplementedError:
+    #         print("Chưa implement — hoàn thành TODO trong retrieve_dense() và call_llm() trước.")
+    #     except Exception as e:
+    #         print(f"Lỗi: {e}")
 
     # Uncomment sau khi Sprint 3 hoàn thành:
-    print("\n--- Sprint 3: So sánh strategies ---")
-    compare_retrieval_strategies("Approval Matrix để cấp quyền là tài liệu nào?")
-    compare_retrieval_strategies("ERR-403-AUTH")
-
+    print("\n--- Sprint 3: So sánh strategies (với optimization) ---")
+    print(f"\n[INFO] OPTIMIZATION:")
+    print(f"  • call_llm() có retry logic với exponential backoff (max_retries={MAX_LLM_RETRIES})")
+    print(f"  • Hybrid retrieval dùng TOP_K_HYBRID={TOP_K_HYBRID} (not {TOP_K_SEARCH}) để giảm token cost")
+    print(f"  • Dense/Sparse dùng TOP_K_SEARCH={TOP_K_SEARCH}")
+    
+    compare_retrieval_strategies("Ai phải phê duyệt để cấp quyền Level 3?")
     # print("\n\nViệc cần làm Sprint 2:")
     # print("  1. Implement retrieve_dense() — query ChromaDB")
     # print("  2. Implement call_llm() — gọi OpenAI hoặc Gemini")
