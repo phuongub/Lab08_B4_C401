@@ -22,13 +22,13 @@ llm_model = gemini-2.5-flash
 **Scorecard Baseline:**
 | Metric | Average Score |
 |--------|--------------|
-| Faithfulness | 4/5 |
-| Answer Relevance |4/5 |
-| Context Recall | 4/5 |
-| Completeness | 4/5 |
+| Faithfulness | 4.10/5 |
+| Answer Relevance | 4.40/5 |
+| Context Recall | 4.50/5 |
+| Completeness | 4.00/5 |
 
 **Câu hỏi yếu nhất (điểm thấp):**
-> Các câu lỗi: q01
+> Các câu lỗi: q09, q10
 > q05 (Approval Matrix) - context recall = 1/5 vì dense bỏ lỡ alias
 
 **Giả thuyết nguyên nhân (Error Tree):**
