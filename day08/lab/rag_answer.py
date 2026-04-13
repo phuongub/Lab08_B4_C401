@@ -24,7 +24,7 @@ Definition of Done Sprint 3:
 import os
 from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
-
+import chromadb
 load_dotenv()
 
 # =============================================================================
@@ -76,6 +76,18 @@ def retrieve_dense(query: str, top_k: int = TOP_K_SEARCH) -> List[Dict[str, Any]
         # Lưu ý: distances trong ChromaDB cosine = 1 - similarity
         # Score = 1 - distance
     """
+    from index import get_embedding, CHROMA_DB_DIR
+    client = chromadb.PersistentClient(path=str(CHROMA_DB_DIR))
+    collection = client.get_collection("rag_lab")
+
+    query_embedding = get_embedding(query)
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=top_k,
+        include=["documents", "metadatas", "distances"]
+    )
+    # Lưu ý: distances trong ChromaDB cosine = 1 - similarity
+    # Score = 1 - distance
     raise NotImplementedError(
         "TODO Sprint 2: Implement retrieve_dense().\n"
         "Tham khảo comment trong hàm để biết cách query ChromaDB."
