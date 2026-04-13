@@ -57,7 +57,3 @@ _________________
 
 _________________
 
----
-
-*Lưu file này với tên: `reports/individual/[ten_ban].md`*
-*Ví dụ: `reports/individual/nguyen_van_a.md`*
