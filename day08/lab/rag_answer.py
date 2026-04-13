@@ -25,6 +25,14 @@ import os
 from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
 
+import sys
+
+# Windows encoding support for Vietnamese text
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 load_dotenv()
 
 # =============================================================================
@@ -221,6 +229,12 @@ def rerank(
     - Dense/hybrid trả về nhiều chunk nhưng có noise
     - Muốn chắc chắn chỉ 3-5 chunk tốt nhất vào prompt
     """
+    from sentence_transformers import CrossEncoder
+    model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+    pairs = [[query, chunk["text"]] for chunk in candidates]
+    scores = model.predict(pairs)
+    ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
+    return [chunk for chunk, _ in ranked[:top_k]]
     # TODO Sprint 3: Implement rerank
     # Tạm thời trả về top_k đầu tiên (không rerank)
     return candidates[:top_k]
@@ -553,19 +567,16 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Lỗi: {e}")
 
-    # Uncomment sau khi Sprint 3 hoàn thành:
-    # print("\n--- Sprint 3: So sánh strategies ---")
-    # compare_retrieval_strategies("Approval Matrix để cấp quyền là tài liệu nào?")
-    # compare_retrieval_strategies("ERR-403-AUTH")
-
-    # print("\n\nViệc cần làm Sprint 2:")
-    # print("  1. Implement retrieve_dense() — query ChromaDB")
-    # print("  2. Implement call_llm() — gọi OpenAI hoặc Gemini")
-    # print("  3. Chạy rag_answer() với 3+ test queries")
-    # print("  4. Verify: output có citation không? Câu không có docs → abstain không?")
-
-    # print("\nViệc cần làm Sprint 3:")
-    # print("  1. Chọn 1 trong 3 variants: hybrid, rerank, hoặc query transformation")
-    # print("  2. Implement variant đó")
-    # print("  3. Chạy compare_retrieval_strategies() để thấy sự khác biệt")
-    # print("  4. Ghi lý do chọn biến đó vào docs/tuning-log.md")
+    # --- Sprint 3: Reranking Demo ---
+    print("\n" + "="*60)
+    print("SPRINT 3: RERANKING TEST")
+    print("="*60)
+    
+    query = "Tài khoản bị khóa sau bao nhiêu lần đăng nhập sai?"
+    print(f"\nQuery: {query} (with use_rerank=True)")
+    try:
+        result = rag_answer(query, retrieval_mode="dense", use_rerank=True, verbose=True)
+        print(f"Answer: {result['answer']}")
+        print(f"Sources: {result['sources']}")
+    except Exception as e:
+        print(f"Lỗi Sprint 3: {e}")
