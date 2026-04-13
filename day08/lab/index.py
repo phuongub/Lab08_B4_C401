@@ -31,8 +31,8 @@ CHROMA_DB_DIR = Path(__file__).parent / "chroma_db"
 
 # TODO Sprint 1: Điều chỉnh chunk size và overlap theo quyết định của nhóm
 # Gợi ý từ slide: chunk 300-500 tokens, overlap 50-80 tokens
-CHUNK_SIZE = 400       # tokens (ước lượng bằng số ký tự / 4)
-CHUNK_OVERLAP = 80     # tokens overlap giữa các chunk
+CHUNK_SIZE = 500       # tokens (ước lượng bằng số ký tự / 4)
+CHUNK_OVERLAP = 50     # tokens overlap giữa các chunk
 
 
 # =============================================================================
@@ -409,11 +409,51 @@ def inspect_metadata_coverage(db_dir: Path = CHROMA_DB_DIR) -> None:
         print(f"Lỗi: {e}. Hãy chạy build_index() trước.")
 
 
+def export_chunks_to_markdown(db_dir: Path = CHROMA_DB_DIR, output_file: str = "chunks_report.md") -> None:
+    """
+    Xuất toàn bộ chi tiết của các chunk trong ChromaDB ra một file Markdown.
+
+    Args:
+        db_dir: Đường dẫn đến folder ChromaDB
+        output_file: Tên file output (mặc định là chunks_report.md)
+    """
+    try:
+        import chromadb
+        client = chromadb.PersistentClient(path=str(db_dir))
+        collection = client.get_collection("rag_lab")
+        results = collection.get(include=["documents", "metadatas"])
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(f"# Báo cáo chi tiết các Chunks\n\n")
+            f.write(f"Tổng số chunks: {len(results['metadatas'])}\n\n")
+            f.write("---\n\n")
+
+            for i, (doc, meta) in enumerate(zip(results["documents"], results["metadatas"])):
+                f.write(f"### Chunk {i+1}\n")
+                f.write(f"- **Source**: `{meta.get('source', 'N/A')}`\n")
+                f.write(f"- **Section**: `{meta.get('section', 'N/A')}`\n")
+                f.write(f"- **Department**: `{meta.get('department', 'N/A')}`\n")
+                f.write(f"- **Effective Date**: `{meta.get('effective_date', 'N/A')}`\n")
+                f.write(f"- **Access**: `{meta.get('access', 'N/A')}`\n\n")
+                f.write(f"#### Content:\n")
+                f.write(f"```text\n{doc}\n```\n\n")
+                f.write("---\n\n")
+
+        print(f"Đã xuất chi tiết {len(results['metadatas'])} chunks ra file: {output_file}")
+
+    except Exception as e:
+        print(f"Lỗi khi xuất file: {e}")
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
 
 if __name__ == "__main__":
+    import sys
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
+
     print("=" * 60)
     print("Sprint 1: Build RAG Index")
     print("=" * 60)
@@ -447,6 +487,7 @@ if __name__ == "__main__":
     # Uncomment sau khi build_index() thành công:
     list_chunks()
     inspect_metadata_coverage()
+    export_chunks_to_markdown()
 
     print("\nSprint 1 setup hoàn thành!")
     print("Việc cần làm:")
