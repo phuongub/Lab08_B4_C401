@@ -24,10 +24,11 @@ Definition of Done Sprint 3:
 import os
 import importlib
 import re
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).with_name(".env"))
 
 # =============================================================================
 # CẤU HÌNH
@@ -40,6 +41,10 @@ TOP_K_SELECT = 3     # Số chunk gửi vào prompt sau rerank/select (top-3 swe
 LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-flash")
 
 _SPARSE_INDEX_CACHE: Dict[str, Any] = {}
+
+
+def _get_gemini_api_key() -> str:
+    return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
 
 
 def _tokenize_for_bm25(text: str) -> List[str]:
@@ -252,10 +257,53 @@ def retrieve_hybrid(
     - Corpus có cả câu tự nhiên VÀ tên riêng, mã lỗi, điều khoản
     - Query như "Approval Matrix" khi doc đổi tên thành "Access Control SOP"
     """
-    # TODO Sprint 3: Implement hybrid RRF
-    # Tạm thời fallback về dense
-    print("[retrieve_hybrid] Chưa implement RRF — fallback về dense")
-    return retrieve_dense(query, top_k)
+    dense_results = retrieve_dense(query, top_k=top_k)
+    sparse_results = retrieve_sparse(query, top_k=top_k)
+
+    if not dense_results and not sparse_results:
+        return []
+
+    def chunk_key(chunk: Dict[str, Any]) -> str:
+        metadata = chunk.get("metadata", {}) or {}
+        source = metadata.get("source", "")
+        section = metadata.get("section", "")
+        text = chunk.get("text", "")
+        return f"{source}||{section}||{text}"
+
+    dense_rank_map = {chunk_key(chunk): rank for rank, chunk in enumerate(dense_results, start=1)}
+    sparse_rank_map = {chunk_key(chunk): rank for rank, chunk in enumerate(sparse_results, start=1)}
+
+    merged: Dict[str, Dict[str, Any]] = {}
+    all_chunks = dense_results + sparse_results
+
+    for chunk in all_chunks:
+        key = chunk_key(chunk)
+        if key not in merged:
+            merged[key] = {
+                "text": chunk.get("text", ""),
+                "metadata": chunk.get("metadata", {}) or {},
+                "score": 0.0,
+            }
+
+        dense_rank = dense_rank_map.get(key)
+        sparse_rank = sparse_rank_map.get(key)
+
+        dense_score = dense_weight * (1.0 / (60.0 + dense_rank)) if dense_rank is not None else 0.0
+        sparse_score = sparse_weight * (1.0 / (60.0 + sparse_rank)) if sparse_rank is not None else 0.0
+        merged[key]["score"] += dense_score + sparse_score
+
+        if dense_rank is not None and "dense_rank" not in merged[key]:
+            merged[key]["dense_rank"] = dense_rank
+        if sparse_rank is not None and "sparse_rank" not in merged[key]:
+            merged[key]["sparse_rank"] = sparse_rank
+
+    fused_results = sorted(
+        merged.values(),
+        key=lambda chunk: chunk["score"],
+        reverse=True,
+    )
+
+    return fused_results[:top_k]
 
 
 # =============================================================================
@@ -418,28 +466,31 @@ def call_llm(prompt: str) -> str:
         return response.choices[0].message.content
 
     Option B — Google Gemini (cần GOOGLE_API_KEY):
-        import google.generativeai as genai
-        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
+        from google import genai
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
         return response.text
 
     Lưu ý: Dùng temperature=0 hoặc thấp để output ổn định cho evaluation.
     """
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = _get_gemini_api_key()
     if not api_key:
-        raise ValueError("Thiếu GOOGLE_API_KEY trong file .env")
+        raise ValueError("Thiếu GEMINI_API_KEY trong file .env")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(LLM_MODEL)
-    response = model.generate_content(
-        prompt,
-        generation_config={
-            "temperature": 0,
-            "max_output_tokens": 512,
-        },
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=LLM_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0,
+            max_output_tokens=512,
+        ),
     )
 
     text = getattr(response, "text", None)

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).with_name(".env"))
 
 # =============================================================================
 # CẤU HÌNH
@@ -35,6 +35,10 @@ CHUNK_SIZE = 400       # tokens (ước lượng bằng số ký tự / 4)
 CHUNK_OVERLAP = 80     # tokens overlap giữa các chunk
 
 _LOCAL_EMBEDDING_MODEL = None
+
+
+def _get_gemini_api_key() -> str:
+    return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
 
 
 # =============================================================================
@@ -245,18 +249,18 @@ def get_embedding(text: str) -> List[float]:
         model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
         return model.encode(text).tolist()
     """
-    google_api_key = os.getenv("GOOGLE_API_KEY")
+    gemini_api_key = _get_gemini_api_key()
 
-    if google_api_key:
+    if gemini_api_key:
         try:
-            import google.generativeai as genai
+            from google import genai
 
-            genai.configure(api_key=google_api_key)
-            response = genai.embed_content(
-                model="models/text-embedding-004",
-                content=text,
+            client = genai.Client(api_key=gemini_api_key)
+            response = client.models.embed_content(
+                model="text-embedding-004",
+                contents=text,
             )
-            return response["embedding"]
+            return response.embeddings[0].values
         except Exception:
             # Nếu Google embedding không sẵn sàng, fallback sang local model.
             pass

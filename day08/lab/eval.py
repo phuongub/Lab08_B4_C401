@@ -25,22 +25,20 @@ from datetime import datetime
 from rag_answer import rag_answer
 import os
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 # Load .env
-load_dotenv()
+load_dotenv(Path(__file__).with_name(".env"))
 
 # Lấy API key
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 if not api_key:
     raise ValueError("Không tìm thấy GEMINI_API_KEY trong .env")
 
-# Config Gemini
-genai.configure(api_key=api_key)
-
-# Init model (dùng 1 lần global)
-model = genai.GenerativeModel("gemini-2.5-pro")
+# Init client (dùng 1 lần global)
+client = genai.Client(api_key=api_key)
 
 # =============================================================================
 # CẤU HÌNH
@@ -125,7 +123,11 @@ Return JSON:
 {{"score": int, "reason": "..." }}
 """
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-pro",
+        contents=prompt,
+        config=types.GenerateContentConfig(temperature=0),
+    )
     text = response.text.strip()
 
     try:
@@ -172,7 +174,11 @@ Return JSON:
 {{"score": int, "reason": "..."}}
 """
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-pro",
+        contents=prompt,
+        config=types.GenerateContentConfig(temperature=0),
+    )
 
     try:
         result = json.loads(response.text)
@@ -283,7 +289,11 @@ Return JSON:
 {{"score": int, "missing_points": ["..."]}}
 """
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-pro",
+        contents=prompt,
+        config=types.GenerateContentConfig(temperature=0),
+    )
 
     try:
         result = json.loads(response.text)
