@@ -34,7 +34,6 @@ WORKER_NAME = "policy_tool_worker"
 # ─────────────────────────────────────────────
 
 def _call_mcp_tool(tool_name: str, tool_input: dict, retry: int = 1) -> dict:
-def _call_mcp_tool(tool_name: str, tool_input: dict, retry: int = 1) -> dict:
     """
     Gọi MCP tool.
 
