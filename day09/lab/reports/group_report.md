@@ -1,27 +1,23 @@
 # Báo Cáo Nhóm — Lab Day 09: Multi-Agent Orchestration
 
-**Tên nhóm:** ___________  
+**Tên nhóm:** B4_C401
+
 **Thành viên:**
 | Tên | Vai trò | Email |
 |-----|---------|-------|
-| ___ | Supervisor Owner | ___ |
-| ___ | Worker Owner | ___ |
-| ___ | MCP Owner | ___ |
-| ___ | Trace & Docs Owner | ___ |
+| Nguyễn Thị Thùy Trang | Trace & Docs Owner | nuyenthuytrang372004@gmail.com |
+| Trần Việt Phương | Worker Owner | phuong251202@gmail.com |
+| Lê Đức Anh | MCP Owner | ducanh198369@gmail.com |
+| Phạm Hoàng Tiến Mạnh | Trace & Docs Owner |phamnguyentienmanh2004@gmail.com |
+| Nguyễn Ngọc Tân | Trace & Docs Owner | |
+| Nguyễn Hoàng Nghĩa | Worker Owner | nhnghia210@gmail.com |
+| Trịnh Uyên Chi | Supervisor Owner | trinhuyenchi2003@gmail.com |
 
-**Ngày nộp:** ___________  
-**Repo:** ___________  
+**Ngày nộp:** 14/4/2026
+**Repo:** https://github.com/phuongub/Lab08_B4_C401
 **Độ dài khuyến nghị:** 600–1000 từ
 
 ---
-
-> **Hướng dẫn nộp group report:**
-> 
-> - File này nộp tại: `reports/group_report.md`
-> - Deadline: Được phép commit **sau 18:00** (xem SCORING.md)
-> - Tập trung vào **quyết định kỹ thuật cấp nhóm** — không trùng lặp với individual reports
-> - Phải có **bằng chứng từ code/trace** — không mô tả chung chung
-> - Mỗi mục phải có ít nhất 1 ví dụ cụ thể từ code hoặc trace thực tế của nhóm
 
 ---
 
@@ -32,19 +28,24 @@
 
 **Hệ thống tổng quan:**
 
-_________________
+Nhóm xây dựng hệ thống theo pattern Supervisor-Worker, trong đó mỗi thành phần đảm nhận một vai trò cụ thể trong pipeline. Supervisor chịu trách nhiệm phân tích câu hỏi và quyết định route sang worker phù hợp. Retrieval worker thực hiện truy xuất thông tin từ ChromaDB, policy_tool worker xử lý các câu hỏi liên quan đến policy và gọi MCP tools khi cần, còn synthesis worker tổng hợp câu trả lời cuối cùng dựa trên context đã thu thập.
+Pipeline giúp tách rõ các bước xử lý từ phân loại, truy xuất, kiểm tra policy đến sinh câu trả lời, thay vì xử lý tất cả trong một lần gọi LLM như ở Day 08. Điều này giúp hệ thống dễ debug hơn, dễ kiểm soát và có khả năng mở rộng khi cần thêm worker hoặc tool mới.
+
+---
+
+---
 
 **Routing logic cốt lõi:**
-> Mô tả logic supervisor dùng để quyết định route (keyword matching, LLM classifier, rule-based, v.v.)
 
-_________________
+Supervisor sử dụng rule-based routing dựa trên keyword. Nếu câu hỏi chứa các từ khóa liên quan đến IT support (SLA, P1, VPN, password) thì route sang retrieval_worker; nếu liên quan đến policy (refund, access, level 1–4) thì route sang policy_tool_worker; nếu có dấu hiệu rủi ro hoặc khẩn cấp thì route sang human_review. Các trường hợp còn lại mặc định sử dụng retrieval_worker.
+
+---
 
 **MCP tools đã tích hợp:**
-> Liệt kê tools đã implement và 1 ví dụ trace có gọi MCP tool.
 
-- `search_kb`: ___________________
-- `get_ticket_info`: ___________________
-- ___________________: ___________________
+- `search_kb`: dùng để tìm thêm tài liệu khi retrieval chưa đủ context
+- `get_ticket_info`: lấy thông tin ticket từ hệ thống nội bộ
+- `check_access_permission`: kiểm tra quyền truy cập và danh sách approver
 
 ---
 
@@ -53,24 +54,25 @@ _________________
 > Chọn **1 quyết định thiết kế** mà nhóm thảo luận và đánh đổi nhiều nhất.
 > Phải có: (a) vấn đề gặp phải, (b) các phương án cân nhắc, (c) lý do chọn phương án đã chọn.
 
-**Quyết định:** ___________________
+**Quyết định:** **\*\*\*\***\_\_\_**\*\*\*\***
 
 **Bối cảnh vấn đề:**
 
-_________________
+---
 
 **Các phương án đã cân nhắc:**
 
 | Phương án | Ưu điểm | Nhược điểm |
-|-----------|---------|-----------|
-| ___ | ___ | ___ |
-| ___ | ___ | ___ |
+| --------- | ------- | ---------- |
+| \_\_\_    | \_\_\_  | \_\_\_     |
+| \_\_\_    | \_\_\_  | \_\_\_     |
 
 **Phương án đã chọn và lý do:**
 
-_________________
+---
 
 **Bằng chứng từ trace/code:**
+
 > Dẫn chứng cụ thể (VD: route_reason trong trace, đoạn code, v.v.)
 
 ```
@@ -82,26 +84,29 @@ _________________
 ## 3. Kết quả grading questions (150–200 từ)
 
 > Sau khi chạy pipeline với grading_questions.json (public lúc 17:00):
+>
 > - Nhóm đạt bao nhiêu điểm raw?
 > - Câu nào pipeline xử lý tốt nhất?
 > - Câu nào pipeline fail hoặc gặp khó khăn?
 
-**Tổng điểm raw ước tính:** ___ / 96
+**Tổng điểm raw ước tính:** \_\_\_ / 96
 
 **Câu pipeline xử lý tốt nhất:**
-- ID: ___ — Lý do tốt: ___________________
+
+- ID: **\_ — Lý do tốt: **\*\*\***\*\_\*\***\*\*\*\*\*\*
 
 **Câu pipeline fail hoặc partial:**
-- ID: ___ — Fail ở đâu: ___________________  
-  Root cause: ___________________
+
+- ID: **\_ — Fail ở đâu: **\*\*\***\*\_\*\***\*\*\***\*  
+  Root cause: **\*\*\*\***\_\_\_**\*\*\*\*\*\*
 
 **Câu gq07 (abstain):** Nhóm xử lý thế nào?
 
-_________________
+---
 
 **Câu gq09 (multi-hop khó nhất):** Trace ghi được 2 workers không? Kết quả thế nào?
 
-_________________
+---
 
 ---
 
@@ -110,16 +115,19 @@ _________________
 > Dựa vào `docs/single_vs_multi_comparison.md` — trích kết quả thực tế.
 
 **Metric thay đổi rõ nhất (có số liệu):**
+Multi-hop accuracy tăng từ khoảng 40% lên 70%,
 
-_________________
+---
 
 **Điều nhóm bất ngờ nhất khi chuyển từ single sang multi-agent:**
+Khả năng debug cải thiện rõ rệt. Với trace và route_reason, nhóm có thể xác định chính xác lỗi nằm ở bước nào thay vì phải đọc toàn bộ pipeline.
 
-_________________
+---
 
 **Trường hợp multi-agent KHÔNG giúp ích hoặc làm chậm hệ thống:**
+Với các câu hỏi đơn giản, multi-agent không cải thiện nhiều về accuracy nhưng lại làm tăng latency do thêm bước routing và worker.
 
-_________________
+---
 
 ---
 
@@ -129,34 +137,40 @@ _________________
 
 **Phân công thực tế:**
 
-| Thành viên | Phần đã làm | Sprint |
-|------------|-------------|--------|
-| ___ | ___________________ | ___ |
-| ___ | ___________________ | ___ |
-| ___ | ___________________ | ___ |
-| ___ | ___________________ | ___ |
+| Thành viên            | Phần đã làm                                                | Sprint |
+| --------------------- | ---------------------------------------------------------- | ------ |
+| Nguyễn Thị Thùy Trang | Làm báo cáo file routing_decisions, system_architecture    | 4      |
+| Trần Việt Phương      | Làm 2 worker: policy_tool với synthesis                    | 2      |
+| Lê Đức Anh            | Hoàn thiện file mcp_server.py                              | 3      |
+| Phạm Hoàng Tiến Mạnh  | Làm báo cáo file single_vs_multi_comparison và report nhóm | 4      |
+| Nguyễn Ngọc Tân       | Hoàn thiện và chạy code file eval_trace                    | 4      |
+| Nguyễn Hoàng Nghĩa    | Làm worker retrieval                                       | 2      |
+| Trịnh Uyên Chi        | Hoàn thiện file graph.py                                   | 1      |
 
 **Điều nhóm làm tốt:**
+Phân chia rõ ràng theo từng module (worker, MCP, docs), giúp làm song song hiệu quả.
 
-_________________
+---
 
 **Điều nhóm làm chưa tốt hoặc gặp vấn đề về phối hợp:**
+Routing logic còn đơn giản, dễ sai với câu hỏi phức tạp. Chưa tối ưu latency.
 
-_________________
+---
 
 **Nếu làm lại, nhóm sẽ thay đổi gì trong cách tổ chức?**
+Sử dụng LLM classifier cho routing thay vì keyword-based để tăng độ chính xác.
 
-_________________
+---
 
 ---
 
 ## 6. Nếu có thêm 1 ngày, nhóm sẽ làm gì? (50–100 từ)
 
-> 1–2 cải tiến cụ thể với lý do có bằng chứng từ trace/scorecard.
-
-_________________
+> Nhóm sẽ cải thiện routing bằng cách dùng LLM classifier thay vì rule-based để giảm lỗi route sai. Ngoài ra, sẽ thêm caching cho retrieval và tối ưu pipeline để giảm latency, đồng thời bổ sung re-ranking để cải thiện chất lượng context.
 
 ---
 
-*File này lưu tại: `reports/group_report.md`*  
-*Commit sau 18:00 được phép theo SCORING.md*
+---
+
+_File này lưu tại: `reports/group_report.md`_  
+_Commit sau 18:00 được phép theo SCORING.md_
