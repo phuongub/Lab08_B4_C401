@@ -16,18 +16,18 @@
 > "Nhân viên vừa vào thử việc (trong probation period) muốn làm remote vì lý do cá nhân. Điều kiện là gì?"
 
 **Worker được chọn:** `policy_tool_worker`  
-**Route reason (từ trace):** `Task liên quan đến chính sách/điều khoản → policy_tool_worker (MCP) | có thể cần MCP search_kb/get_ticket_info nếu context nội bộ chưa đủ`  
+**Route reason (từ trace):** `Task liên quan policy → policy_tool_worker`  
 **MCP tools được gọi:** `search_kb`  
 **Workers called sequence:** policy_tool_worker → synthesis_worker
 
 **Kết quả thực tế:**
-- final_answer (ngắn): Khách hàng Flash Sale **không được hoàn tiền** ngay cả khi sản phẩm lỗi [POLICY EXCEPTIONS]
+- final_answer (ngắn): Nhân viên chỉ được remote sau probation period
 - confidence: 0.48
 - Correct routing? Yes 
 
 **Nhận xét:** _(Routing này đúng hay sai? Nếu sai, nguyên nhân là gì?)_
 
-Routing đúng vì đây là câu hỏi policy/HR. Tuy nhiên policy analysis bị lệch sang refund exception, cho thấy worker policy hiện còn dùng rule quá rộng hoặc context retrieval chưa đủ sạch.
+Đây là case policy tốt nhất. Retrieval lấy đúng HR policy nên answer chính xác và confidence cao.
 
 ---
 
