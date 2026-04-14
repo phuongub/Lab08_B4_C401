@@ -65,6 +65,31 @@ def _call_llm(messages: list) -> str:
     return "[SYNTHESIS ERROR] Không thể gọi LLM. Kiểm tra API key trong .env."
 
 
+def _fallback_grounded_answer(task: str, chunks: list, policy_result: dict) -> str:
+    """Sinh câu trả lời grounded khi không gọi được LLM."""
+    if not chunks:
+        return "Không đủ thông tin trong tài liệu nội bộ để trả lời câu hỏi này."
+
+    top_chunk = chunks[0]
+    source = top_chunk.get("source", "unknown")
+    evidence = top_chunk.get("text", "").strip()
+    evidence = evidence[:420] + ("..." if len(evidence) > 420 else "")
+
+    lines = [
+        f"Theo tài liệu nội bộ, thông tin liên quan nhất là: {evidence} [{source}]",
+    ]
+
+    exceptions = policy_result.get("exceptions_found", []) if policy_result else []
+    if exceptions:
+        ex = exceptions[0]
+        ex_rule = ex.get("rule", "Có ngoại lệ chính sách cần lưu ý.")
+        ex_source = ex.get("source", source)
+        lines.append(f"Ngoại lệ chính sách: {ex_rule} [{ex_source}]")
+
+    lines.append("Nếu cần kết luận chính thức, vui lòng cung cấp thêm context hoặc bật LLM key để tổng hợp đầy đủ.")
+    return "\n".join(lines)
+
+
 def _build_context(chunks: list, policy_result: dict) -> str:
     """Xây dựng context string từ chunks và policy result."""
     parts = []
@@ -139,6 +164,8 @@ Hãy trả lời câu hỏi dựa vào tài liệu trên."""
     ]
 
     answer = _call_llm(messages)
+    if answer.startswith("[SYNTHESIS ERROR]"):
+        answer = _fallback_grounded_answer(task, chunks, policy_result)
     sources = list({c.get("source", "unknown") for c in chunks})
     confidence = _estimate_confidence(chunks, answer, policy_result)
 

@@ -26,6 +26,8 @@ import sys
 
 WORKER_NAME = "retrieval_worker"
 DEFAULT_TOP_K = 3
+_EMBED_FN = None
+_COLLECTION = None
 
 
 def _get_embedding_fn():
@@ -33,13 +35,18 @@ def _get_embedding_fn():
     Trả về embedding function.
     TODO Sprint 1: Implement dùng OpenAI hoặc Sentence Transformers.
     """
+    global _EMBED_FN
+    if _EMBED_FN is not None:
+        return _EMBED_FN
+
     # Option A: Sentence Transformers (offline, không cần API key)
     try:
         from sentence_transformers import SentenceTransformer
         model = SentenceTransformer("all-MiniLM-L6-v2")
         def embed(text: str) -> list:
             return model.encode([text])[0].tolist()
-        return embed
+        _EMBED_FN = embed
+        return _EMBED_FN
     except ImportError:
         pass
 
@@ -50,7 +57,8 @@ def _get_embedding_fn():
         def embed(text: str) -> list:
             resp = client.embeddings.create(input=text, model="text-embedding-3-small")
             return resp.data[0].embedding
-        return embed
+        _EMBED_FN = embed
+        return _EMBED_FN
     except ImportError:
         pass
 
@@ -59,7 +67,8 @@ def _get_embedding_fn():
     def embed(text: str) -> list:
         return [random.random() for _ in range(384)]
     print("⚠️  WARNING: Using random embeddings (test only). Install sentence-transformers.")
-    return embed
+    _EMBED_FN = embed
+    return _EMBED_FN
 
 
 def _get_collection():
@@ -67,6 +76,10 @@ def _get_collection():
     Kết nối ChromaDB collection.
     TODO Sprint 2: Đảm bảo collection đã được build từ Step 3 trong README.
     """
+    global _COLLECTION
+    if _COLLECTION is not None:
+        return _COLLECTION
+
     import chromadb
     client = chromadb.PersistentClient(path="./chroma_db")
     try:
@@ -78,7 +91,8 @@ def _get_collection():
             metadata={"hnsw:space": "cosine"}
         )
         print(f"⚠️  Collection 'day09_docs' chưa có data. Chạy index script trong README trước.")
-    return collection
+    _COLLECTION = collection
+    return _COLLECTION
 
 
 def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
