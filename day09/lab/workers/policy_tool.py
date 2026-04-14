@@ -236,6 +236,7 @@ def run(state: dict) -> dict:
             ]
         )
 
+        # Duc Anh
         # Step 1: Nếu chưa có chunks, gọi MCP search_kb để mở rộng evidence
         if not chunks and needs_tool:
             mcp_result = _call_mcp_tool("search_kb", {"query": task, "top_k": 3})
