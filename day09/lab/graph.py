@@ -19,7 +19,7 @@ from workers.policy_tool import run as policy_tool_run
 from workers.synthesis import run as synthesis_run
 
 # Uncomment nếu dùng LangGraph:
-# from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, END, START
 
 # ─────────────────────────────────────────────
 # 1. Shared State — dữ liệu đi xuyên toàn graph
@@ -241,53 +241,56 @@ def synthesis_worker_node(state: AgentState) -> AgentState:
 
 def build_graph():
     """
-    Xây dựng graph với supervisor-worker pattern.
-
-    Option A (đơn giản — Python thuần): Dùng if/else, không cần LangGraph.
-    Option B (nâng cao): Dùng LangGraph StateGraph với conditional edges.
-
-    Lab này implement Option A theo mặc định.
-    TODO Sprint 1: Có thể chuyển sang LangGraph nếu muốn.
+    Xây dựng graph bằng LangGraph.
     """
-    # Option A: Simple Python orchestrator
-    def run(state: AgentState) -> AgentState:
-        import time
-        start = time.time()
+    # 1. Khởi tạo đồ thị với cấu trúc State của chúng ta
+    workflow = StateGraph(AgentState)
 
-        # Step 1: Supervisor decides route
-        state = supervisor_node(state)
+    # 2. Khai báo các Nodes (Các hàm xử lý)
+    workflow.add_node("supervisor", supervisor_node)
+    workflow.add_node("retrieval_worker", retrieval_worker_node)
+    workflow.add_node("policy_tool_worker", policy_tool_worker_node)
+    workflow.add_node("human_review", human_review_node)
+    workflow.add_node("synthesis_worker", synthesis_worker_node)
 
-        # Step 2: Route to appropriate worker
-        route = route_decision(state)
+    # 3. Định nghĩa Edges (Luồng chảy của data)
+    
+    # Điểm bắt đầu luôn đi vào Supervisor
+    workflow.add_edge(START, "supervisor")
 
-        if route == "human_review":
-            state = human_review_node(state)
-            # After human approval, continue with retrieval
-            state = retrieval_worker_node(state)
-        elif route == "policy_tool_worker":
-            state = policy_tool_worker_node(state)
-            if state.get("risk_high", False):
-                state = human_review_node(state)
-            # Policy worker may need retrieval context first
-            if not state["retrieved_chunks"]:
-                state = retrieval_worker_node(state)
-        else:
-            # Default: retrieval_worker
-            state = retrieval_worker_node(state)
+    # Supervisor chia nhánh dựa trên hàm route_decision
+    workflow.add_conditional_edges(
+        "supervisor",
+        route_decision, 
+        {
+            "retrieval_worker": "retrieval_worker",
+            "policy_tool_worker": "policy_tool_worker",
+            "human_review": "human_review"
+        }
+    )
 
-        # Step 3: Always synthesize
-        state = synthesis_worker_node(state)
+    # Nếu vào Human Review, sau khi duyệt xong thì đi tới Retrieval
+    workflow.add_edge("human_review", "retrieval_worker")
 
-        state["latency_ms"] = int((time.time() - start) * 1000)
-        state["history"].append(f"[graph] completed in {state['latency_ms']}ms")
-        return state
+    # Nếu vào Policy Tool, dùng hàm phụ để xét xem có cần sang Retrieval không
+    workflow.add_conditional_edges(
+        "policy_tool_worker",
+        post_policy_route,
+        {
+            "retrieval_worker": "retrieval_worker",
+            "synthesis_worker": "synthesis_worker"
+        }
+    )
 
-    return run
+    # Retrieval xong thì luôn gom lại về Synthesis
+    workflow.add_edge("retrieval_worker", "synthesis_worker")
 
+    # Synthesis xong là Kết thúc (END)
+    workflow.add_edge("synthesis_worker", END)
 
-# ─────────────────────────────────────────────
-# 7. Public API
-# ─────────────────────────────────────────────
+    # 4. Compile đồ thị thành một ứng dụng chạy được
+    app = workflow.compile()
+    return app
 
 # ─────────────────────────────────────────────
 # 7. Public API
