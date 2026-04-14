@@ -1,0 +1,58 @@
+{
+  "task": "Cần cấp quyền Level 3 để khắc phục P1 khẩn cấp. Quy trình là gì?",
+  "route_reason": "Task chứa yếu tố khẩn cấp/ngoại lệ/mã lỗi lạ → điều hướng human review | human approved → retrieval",
+  "risk_high": true,
+  "needs_tool": false,
+  "hitl_triggered": true,
+  "retrieved_chunks": [],
+  "retrieved_sources": [],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "[SYNTHESIS ERROR] Không thể gọi LLM. Kiểm tra API key trong .env.",
+  "sources": [],
+  "confidence": 0.1,
+  "history": [
+    "[supervisor] received task: Cần cấp quyền Level 3 để khắc phục P1 khẩn cấp. Quy trình là gì?",
+    "[supervisor] route=human_review reason=Task chứa yếu tố khẩn cấp/ngoại lệ/mã lỗi lạ → điều hướng human review",
+    "[human_review] HITL triggered — awaiting human input",
+    "[retrieval_worker] retrieved 0 chunks from []",
+    "[synthesis_worker] answer generated, confidence=0.1, sources=[]",
+    "[graph] completed in 9421ms"
+  ],
+  "workers_called": [
+    "human_review",
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 9421,
+  "run_id": "run_20260414_154347",
+  "worker_io_logs": [
+    {
+      "worker": "retrieval_worker",
+      "input": {
+        "task": "Cần cấp quyền Level 3 để khắc phục P1 khẩn cấp. Quy trình là gì?",
+        "top_k": 3
+      },
+      "output": {
+        "chunks_count": 0,
+        "sources": []
+      },
+      "error": null
+    },
+    {
+      "worker": "synthesis_worker",
+      "input": {
+        "task": "Cần cấp quyền Level 3 để khắc phục P1 khẩn cấp. Quy trình là gì?",
+        "chunks_count": 0,
+        "has_policy": false
+      },
+      "output": {
+        "answer_length": 65,
+        "sources": [],
+        "confidence": 0.1
+      },
+      "error": null
+    }
+  ]
+}
