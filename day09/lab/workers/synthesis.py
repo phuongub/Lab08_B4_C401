@@ -19,8 +19,7 @@ Gọi độc lập để test:
 import os
 from dotenv import load_dotenv
 load_dotenv()
-from dotenv import load_dotenv
-load_dotenv()
+
 
 WORKER_NAME = "synthesis_worker"
 
