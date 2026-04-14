@@ -17,6 +17,11 @@ Gọi độc lập để test:
 
 import os
 import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Đọc .env từ thư mục cha (day09/lab/) dù chạy từ đâu
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 # ─────────────────────────────────────────────
 # Worker Contract (xem contracts/worker_contracts.yaml)
@@ -68,24 +73,23 @@ def _get_collection():
     TODO Sprint 2: Đảm bảo collection đã được build từ Step 3 trong README.
     """
     import chromadb
+    # Resolve path từ env, fallback về thư mục cha của workers/ (day09/lab/)
+    chroma_path = os.getenv("CHROMA_DB_PATH", "./chroma_db")
+    if not os.path.isabs(chroma_path):
+        chroma_path = str(Path(__file__).resolve().parent.parent / chroma_path.lstrip("./"))
+    collection_name = os.getenv("CHROMA_COLLECTION", "day09_docs")
 
-    DB_PATH = os.getenv(
-        "CHROMA_DB_PATH",
-        "/Users/nghia/Documents/Day_08/day08/lab/chroma_db"
-    )
-
-    client = chromadb.PersistentClient(path=DB_PATH)
-
+    client = chromadb.PersistentClient(path=chroma_path)
     try:
-        return client.get_collection("rag_lab")
-
+        collection = client.get_collection(collection_name)
     except Exception:
-        print("⚠️ Collection chưa tồn tại hoặc chưa index data")
-        return client.get_or_create_collection(
-            "day09_docs",
+        # Auto-create nếu chưa có
+        collection = client.get_or_create_collection(
+            collection_name,
             metadata={"hnsw:space": "cosine"}
         )
-
+        print(f"⚠️  Collection '{collection_name}' chưa có data. Chạy index script trong README trước.")
+    return collection
 
 
 def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
