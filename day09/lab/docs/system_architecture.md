@@ -156,7 +156,7 @@ User Request
 
 **Nhóm điền thêm quan sát từ thực tế lab:**
 
-> Supervisor-Worker giúp debug dễ hơn vì có thể kiểm tra riêng từng bước như retrieval (có lấy đúng chunk không), policy (có áp dụng đúng rule không), và synthesis (có bám context không). Khi câu trả lời sai, nhóm dễ xác định lỗi nằm ở bước nào. Tuy nhiên, pipeline phức tạp hơn so với single agent và cần quản lý state cẩn thận để tránh mất dữ liệu giữa các bước.
+- Supervisor-Worker giúp debug dễ hơn vì có thể kiểm tra riêng từng bước như retrieval (có lấy đúng chunk không), policy (có áp dụng đúng rule không), và synthesis (có bám context không). Khi câu trả lời sai, nhóm dễ xác định lỗi nằm ở bước nào. Tuy nhiên, pipeline phức tạp hơn so với single agent và cần quản lý state cẩn thận để tránh mất dữ liệu giữa các bước.
 
 ---
 
