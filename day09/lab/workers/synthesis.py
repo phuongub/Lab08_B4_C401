@@ -17,10 +17,11 @@ Gọi độc lập để test:
 """
 
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
-load_dotenv()
-from dotenv import load_dotenv
-load_dotenv()
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 WORKER_NAME = "synthesis_worker"
 
@@ -35,50 +36,47 @@ Quy tắc nghiêm ngặt:
 """
 
 
+def _is_valid_openai_key(key: str | None) -> bool:
+    if not key:
+        return False
+    if key.startswith("sk-") and "..." not in key and "your-key" not in key:
+        return True
+    return False
+
+
 def _call_llm(messages: list) -> str:
-    """
-    Gọi LLM để tổng hợp câu trả lời.
-    TODO Sprint 2: Implement với OpenAI hoặc Gemini.
-    """
-    # Option A: OpenAI
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            temperature=0.1,  # Low temperature để grounded
-            max_tokens=500,
-        )
-        return response.choices[0].message.content
-    except Exception:
-        pass
+    """Gọi LLM để tổng hợp câu trả lời (OpenAI → Gemini → fallback)."""
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if _is_valid_openai_key(openai_key):
+        try:
+            from openai import OpenAI
 
-    # Option B: Gemini
-    try:
-        from google import genai
-        from google.genai import types
-        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-        from google import genai
-        from google.genai import types
-        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-        combined = "\n".join([m["content"] for m in messages])
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=combined
-        )
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=combined
-        )
-        return response.text
-    except Exception as e:
-        print(f"Gemini API error: {e}")
-    except Exception as e:
-        print(f"Gemini API error: {e}")
-        pass
+            client = OpenAI(api_key=openai_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0.1,
+                max_tokens=500,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"OpenAI API error: {e}")
 
-    # Fallback: trả về message báo lỗi (không hallucinate)
+    gemini_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            from google import genai
+
+            client = genai.Client(api_key=gemini_key)
+            combined = "\n".join([m["content"] for m in messages])
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=combined,
+            )
+            return response.text
+        except Exception as e:
+            print(f"Gemini API error: {e}")
+
     return "[SYNTHESIS ERROR] Không thể gọi LLM. Kiểm tra API key trong .env."
 
 
@@ -191,8 +189,8 @@ Hãy trả lời câu hỏi dựa vào tài liệu trên."""
         }
     ]
 
-    answer = _call_llm(messages)
-    if answer.startswith("[SYNTHESIS ERROR]"):
+    answer = _call_llm(messages) or ""
+    if not answer or answer.startswith("[SYNTHESIS ERROR]"):
         answer = _fallback_grounded_answer(chunks, policy_result or {})
 
     sources = list({c.get("source", "unknown") for c in chunks})
