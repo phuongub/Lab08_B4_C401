@@ -129,14 +129,14 @@ def supervisor_node(state: AgentState) -> AgentState:
     # Priority 1: Human review nếu có dấu hiệu mã lỗi hoặc thiếu context.
     if any(kw in task for kw in risk_keywords):
         route = "human_review"
-        route_reason = "Task chứa yếu tố khẩn cấp/ngoại lệ/mã lỗi lạ → điều hướng human review"
+        route_reason = "Task chứa yếu tố khẩn cấp/ngoại lệ/mã lỗi lạ → human review (no MCP)"
         risk_high = True
         needs_tool = False
 
     # Priority 2: Policy questions ưu tiên policy_tool_worker theo contract.
     elif any(kw in task for kw in policy_keywords):
         route = "policy_tool_worker"
-        route_reason = "Task liên quan đến chính sách/điều khoản → điều hướng policy_tool_worker"
+        route_reason = "Task liên quan đến chính sách/điều khoản → policy_tool_worker (MCP)"
         needs_tool = True
         if any(kw in task for kw in emergency_keywords):
             risk_high = True
@@ -147,13 +147,13 @@ def supervisor_node(state: AgentState) -> AgentState:
     # Priority 3: IT support/SLA queries.
     elif any(kw in task for kw in it_support_keywords):
         route = "retrieval_worker"
-        route_reason = "Task hỏi về hệ thống IT/SLA → ưu tiên retrieval_worker để lấy evidence"
+        route_reason = "Task hỏi về hệ thống IT/SLA → retrieval_worker (no MCP)"
         needs_tool = False
 
     # Default: retrieval_worker
     else:
         route = "retrieval_worker"
-        route_reason = "Không có từ khóa đặc biệt → mặc định retrieval_worker"
+        route_reason = "Không có từ khóa đặc biệt → retrieval_worker (no MCP)"
 
 
     state["supervisor_route"] = route

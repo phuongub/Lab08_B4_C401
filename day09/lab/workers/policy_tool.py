@@ -18,6 +18,7 @@ Gọi độc lập để test:
 
 import os
 import sys
+import time
 from typing import Optional
 from pathlib import Path
 
@@ -27,14 +28,15 @@ if LAB_ROOT not in sys.path:
     sys.path.insert(0, LAB_ROOT)
 
 WORKER_NAME = "policy_tool_worker"
+MAX_RETRIES = 3
+DELAY = 2
 
 
 # ─────────────────────────────────────────────
 # MCP Client — Sprint 3: Thay bằng real MCP call
 # ─────────────────────────────────────────────
 
-def _call_mcp_tool(tool_name: str, tool_input: dict, retry: int = 1) -> dict:
-def _call_mcp_tool(tool_name: str, tool_input: dict, retry: int = 1) -> dict:
+def _call_mcp_tool(tool_name: str, tool_input: dict, retry: int = MAX_RETRIES) -> dict:
     """
     Gọi MCP tool.
 
@@ -61,6 +63,7 @@ def _call_mcp_tool(tool_name: str, tool_input: dict, retry: int = 1) -> dict:
         except Exception as e:
             last_error = e
             if attempt < retry:
+                time.sleep(DELAY)
                 continue
 
     return {
