@@ -19,6 +19,12 @@ Gọi độc lập để test:
 import os
 import sys
 from typing import Optional
+from pathlib import Path
+
+# Ensure parent directory (day09/lab) is importable when running this file directly.
+LAB_ROOT = str(Path(__file__).resolve().parent.parent)
+if LAB_ROOT not in sys.path:
+    sys.path.insert(0, LAB_ROOT)
 
 WORKER_NAME = "policy_tool_worker"
 
@@ -36,7 +42,8 @@ def _call_mcp_tool(tool_name: str, tool_input: dict, retry: int = 1) -> dict:
     Hiện tại: Import trực tiếp từ mcp_server.py (trong-process mock).
     """
     from datetime import datetime
-    for attempt in range(retry+1):
+    last_error = None
+    for attempt in range(retry + 1):
         try:
             # TODO Sprint 3: Thay bằng real MCP client nếu dùng HTTP server
             from mcp_server import dispatch_tool
@@ -51,13 +58,17 @@ def _call_mcp_tool(tool_name: str, tool_input: dict, retry: int = 1) -> dict:
             "timestamp": datetime.now().isoformat(),
         }
         except Exception as e:
-            return {
-            "tool": tool_name,
-            "input": tool_input,
-            "output": None,
-            "error": {"code": "MCP_CALL_FAILED", "reason": str(e)},
-            "timestamp": datetime.now().isoformat(),
-        }
+            last_error = e
+            if attempt < retry:
+                continue
+
+    return {
+        "tool": tool_name,
+        "input": tool_input,
+        "output": None,
+        "error": {"code": "MCP_CALL_FAILED", "reason": str(last_error)},
+        "timestamp": datetime.now().isoformat(),
+    }
 
 
 # ─────────────────────────────────────────────

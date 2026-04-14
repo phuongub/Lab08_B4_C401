@@ -31,6 +31,7 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 WORKER_NAME = "retrieval_worker"
 DEFAULT_TOP_K = 3
+_EMBED_FN = None
 
 
 def _get_embedding_fn():
@@ -38,13 +39,18 @@ def _get_embedding_fn():
     Trả về embedding function.
     TODO Sprint 1: Implement dùng OpenAI hoặc Sentence Transformers.
     """
+    global _EMBED_FN
+    if _EMBED_FN is not None:
+        return _EMBED_FN
+
     # Option A: Sentence Transformers (offline, không cần API key)
     try:
         from sentence_transformers import SentenceTransformer
         model = SentenceTransformer("all-MiniLM-L6-v2")
         def embed(text: str) -> list:
             return model.encode([text])[0].tolist()
-        return embed
+        _EMBED_FN = embed
+        return _EMBED_FN
     except ImportError:
         pass
 
@@ -55,7 +61,8 @@ def _get_embedding_fn():
         def embed(text: str) -> list:
             resp = client.embeddings.create(input=text, model="text-embedding-3-small")
             return resp.data[0].embedding
-        return embed
+        _EMBED_FN = embed
+        return _EMBED_FN
     except ImportError:
         pass
 
@@ -64,7 +71,8 @@ def _get_embedding_fn():
     def embed(text: str) -> list:
         return [random.random() for _ in range(384)]
     print("⚠️  WARNING: Using random embeddings (test only). Install sentence-transformers.")
-    return embed
+    _EMBED_FN = embed
+    return _EMBED_FN
 
 
 def _get_collection():
@@ -104,7 +112,9 @@ def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
     Returns:
         list of {"text": str, "source": str, "score": float, "metadata": dict}
     """
-    # TODO: Implement dense retrieval
+    if not query or not query.strip():
+        return []
+
     embed = _get_embedding_fn()
     query_embedding = embed(query)
 
@@ -122,11 +132,12 @@ def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
             results["distances"][0],
             results["metadatas"][0]
         )):
+            similarity = max(0.0, min(1.0, 1 - float(dist)))
             chunks.append({
                 "text": doc,
-                "source": meta.get("source", "unknown"),
-                "score": round(1 - dist, 4),  # cosine similarity
-                "metadata": meta,
+                "source": (meta or {}).get("source", "unknown"),
+                "score": round(similarity, 4),
+                "metadata": meta or {},
             })
         return chunks
 
